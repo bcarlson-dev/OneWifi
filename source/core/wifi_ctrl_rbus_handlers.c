@@ -931,6 +931,38 @@ bus_error_t hotspot_event_handler(char* eventName, bus_event_sub_action_t action
     return bus_error_success;
 }
 
+bus_error_t add_vendor_ie_command(char *name, raw_data_t *p_data)
+{
+    uint8_t *pTmp = (uint8_t *)p_data->raw_data.bytes;
+    if ((p_data->data_type != bus_data_type_bytes) || (pTmp == NULL)) {
+       wifi_util_error_print(WIFI_CTRL,"%s:%d wrong bus data_type:%x\n", __func__, __LINE__, p_data->data_type);
+       return bus_error_invalid_input;
+    }
+
+    wifi_util_dbg_print(WIFI_CTRL, "%s bus set string %s\n", __FUNCTION__, pTmp);
+    push_event_to_ctrl_queue(pTmp, p_data->raw_data_len, wifi_event_type_command,
+        wifi_event_type_command_add_vendor_ie, NULL);
+
+    return bus_error_success;
+}
+
+
+bus_error_t rm_vendor_ie_command(char *name, raw_data_t *p_data)
+{
+    uint8_t *pTmp = (uint8_t *)p_data->raw_data.bytes;
+    if ((p_data->data_type != bus_data_type_bytes) || (pTmp == NULL)) {
+       wifi_util_error_print(WIFI_CTRL,"%s:%d wrong bus data_type:%x\n", __func__, __LINE__, p_data->data_type);
+       return bus_error_invalid_input;
+    }
+
+    wifi_util_dbg_print(WIFI_CTRL, "%s bus set string %s\n", __FUNCTION__, pTmp);
+    push_event_to_ctrl_queue(pTmp, p_data->raw_data_len, wifi_event_type_command,
+        wifi_event_type_command_rm_vendor_ie, NULL);
+
+    return bus_error_success;
+}
+
+
 int wifiapi_result_publish(void)
 {
     bus_error_t rc;
@@ -2820,6 +2852,12 @@ void bus_register_handlers(wifi_ctrl_t *ctrl)
                                 { ACCESSPOINT_ASSOC_REQ_EVENT, bus_element_type_method,
                                     { NULL, NULL, NULL, NULL, NULL, NULL}, slow_speed, ZERO_TABLE,
                                     { bus_data_type_string, true, 0, 0, 0, NULL } },
+                                { WIFI_ACCESSPOINT_ADD_VENDOR_IE, bus_element_type_method,
+                                    { NULL, add_vendor_ie_command, NULL, NULL, NULL, NULL }, slow_speed, ZERO_TABLE,
+                                    { bus_data_type_bytes, true, 0, 0, 0, NULL } },
+                                { WIFI_ACCESSPOINT_RM_VENDOR_IE, bus_element_type_method,
+                                    { NULL, rm_vendor_ie_command, NULL, NULL, NULL, NULL }, slow_speed, ZERO_TABLE,
+                                    { bus_data_type_bytes, true, 0, 0, 0, NULL } },
                                 { WIFI_CLIENT_GET_ASSOC_REQ,bus_element_type_method,
                                     { NULL, NULL, NULL, NULL, NULL, get_client_assoc_request_multi}, slow_speed, ZERO_TABLE,
                                     { bus_data_type_bytes, true, 0, 0, 0, NULL } },
