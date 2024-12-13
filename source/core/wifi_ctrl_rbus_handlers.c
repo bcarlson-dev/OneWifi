@@ -944,9 +944,14 @@ bus_error_t add_vendor_ie_command(char *name, raw_data_t *p_data)
 
     int ret = sscanf(name, "Device.WiFi.AccessPoint.%d.AddVendorSpecificIE", &idx);
     if (ret < 1 || idx < 0 || idx > num_of_radios * MAX_NUM_VAP_PER_RADIO) {
-        wifi_util_error_print(WIFI_CTRL, "%s:%d Invalid name : %s\r\n", __func__, __LINE__, name);
+        wifi_util_error_print(WIFI_CTRL, "%s:%d Invalid access point index : %s\r\n", __func__, __LINE__, name);
         return bus_error_invalid_input;
     }
+
+    // Decrement the vap index to match the vap index in the radio_config
+    // vap index in radio_config starts from 0
+    // vap index in bus starts from 1
+    idx -= 1;
     
     if ((p_data->data_type != bus_data_type_bytes) || (p_data->raw_data.bytes == NULL)) {
        wifi_util_error_print(WIFI_CTRL,"%s:%d wrong bus data_type:%x\n", __func__, __LINE__, p_data->data_type);
@@ -962,12 +967,12 @@ bus_error_t add_vendor_ie_command(char *name, raw_data_t *p_data)
 
     // Add vap idx to the start of the raw data
     // Data format: [vap_idx, oui[3], payload]
-    uint8_t pTmp[1+p_data->raw_data_len];
+    uint8_t pTmp[1 + p_data->raw_data_len];
     pTmp[0] = idx;
     memcpy(&pTmp[1], p_data->raw_data.bytes, p_data->raw_data_len);
 
     wifi_util_dbg_print(WIFI_CTRL, "%s bus set string %s\n", __FUNCTION__, pTmp);
-    push_event_to_ctrl_queue(pTmp, p_data->raw_data_len+1, wifi_event_type_command,
+    push_event_to_ctrl_queue(pTmp, 1 + p_data->raw_data_len, wifi_event_type_command,
         wifi_event_type_command_add_vendor_ie, NULL);
 
     return bus_error_success;
@@ -987,10 +992,15 @@ bus_error_t rm_vendor_ie_command(char *name, raw_data_t *p_data)
     unsigned int idx = 0;
 
     int ret = sscanf(name, "Device.WiFi.AccessPoint.%d.RemoveVendorSpecificIE", &idx);
-    if (ret == 1 || idx < 0 || idx > num_of_radios * MAX_NUM_VAP_PER_RADIO) {
-        wifi_util_error_print(WIFI_CTRL, "%s:%d Invalid name : %s\r\n", __func__, __LINE__, name);
+    if (ret < 1 || idx < 1 || idx > num_of_radios * MAX_NUM_VAP_PER_RADIO) {
+        wifi_util_error_print(WIFI_CTRL, "%s:%d Invalid access point index : %s\r\n", __func__, __LINE__, name);
         return bus_error_invalid_input;
     }
+
+    // Decrement the vap index to match the vap index in the radio_config
+    // vap index in radio_config starts from 0
+    // vap index in bus starts from 1
+    idx -= 1;
     
     if ((p_data->data_type != bus_data_type_bytes) || (p_data->raw_data.bytes == NULL)) {
        wifi_util_error_print(WIFI_CTRL,"%s:%d wrong bus data_type:%x\n", __func__, __LINE__, p_data->data_type);
@@ -1006,12 +1016,12 @@ bus_error_t rm_vendor_ie_command(char *name, raw_data_t *p_data)
 
     // Add vap idx to the start of the raw data
     // Data format: [vap_idx, oui[3], payload]
-    uint8_t pTmp[1+p_data->raw_data_len];
+    uint8_t pTmp[1 + p_data->raw_data_len];
     pTmp[0] = idx;
     memcpy(&pTmp[1], p_data->raw_data.bytes, p_data->raw_data_len);
 
     wifi_util_dbg_print(WIFI_CTRL, "%s bus set string %s\n", __FUNCTION__, pTmp);
-    push_event_to_ctrl_queue(pTmp, p_data->raw_data_len+1, wifi_event_type_command,
+    push_event_to_ctrl_queue(pTmp, 1 + p_data->raw_data_len, wifi_event_type_command,
         wifi_event_type_command_rm_vendor_ie, NULL);
 
     return bus_error_success;
