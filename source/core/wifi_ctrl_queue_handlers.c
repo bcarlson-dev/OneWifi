@@ -1141,9 +1141,10 @@ void process_add_vendor_ie_event(void *data, unsigned int len){
 
     unsigned int data_len = len - (mut_data - (uint8_t *)data); // Length of IE data
 
-    int ret = wifi_addVendorSpecificIE(ap_index, oui, ie_data, len - 3);
+    int ret = wifi_addVendorSpecificIE(ap_index-1, oui, ie_data, data_len);
     if (ret != WIFI_HAL_SUCCESS) {
         wifi_util_error_print(WIFI_CTRL, "%s:%d wifi_addVendorSpecificIE failed with error: %d\n", __func__, __LINE__, ret);
+        wifi_util_error_print(WIFI_CTRL, "%s:%d ap_index: %d, oui: %02x:%02x:%02x, data_len: %d\n", __func__, __LINE__, ap_index, oui[0], oui[1], oui[2], data_len);
         return;
     }
     wifi_util_dbg_print(WIFI_CTRL, "%s:%d Added Vendor Specific IE successfully\n", __func__, __LINE__);

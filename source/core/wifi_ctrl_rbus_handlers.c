@@ -933,14 +933,41 @@ bus_error_t hotspot_event_handler(char* eventName, bus_event_sub_action_t action
 
 bus_error_t add_vendor_ie_command(char *name, raw_data_t *p_data)
 {
-    uint8_t *pTmp = (uint8_t *)p_data->raw_data.bytes;
-    if ((p_data->data_type != bus_data_type_bytes) || (pTmp == NULL)) {
+    if (!name) {
+        wifi_util_error_print(WIFI_CTRL, "%s:%d property name is not found\r\n", __FUNCTION__,
+            __LINE__);
+        return bus_error_invalid_input;
+    }
+
+    unsigned int num_of_radios = getNumberRadios();
+    unsigned int idx = 0;
+
+    int ret = sscanf(name, "Device.WiFi.AccessPoint.%d.AddVendorSpecificIE", &idx);
+    if (ret < 1 || idx < 0 || idx > num_of_radios * MAX_NUM_VAP_PER_RADIO) {
+        wifi_util_error_print(WIFI_CTRL, "%s:%d Invalid name : %s\r\n", __func__, __LINE__, name);
+        return bus_error_invalid_input;
+    }
+    
+    if ((p_data->data_type != bus_data_type_bytes) || (p_data->raw_data.bytes == NULL)) {
        wifi_util_error_print(WIFI_CTRL,"%s:%d wrong bus data_type:%x\n", __func__, __LINE__, p_data->data_type);
        return bus_error_invalid_input;
     }
 
+    // Check if the raw data length is less than 4 (OUI length + 1 byte minimum payload)
+    if (p_data->raw_data_len < 4) {
+        wifi_util_error_print(WIFI_CTRL, "%s:%d Invalid raw data length : %d\r\n", __func__,
+            __LINE__, p_data->raw_data_len);
+        return bus_error_invalid_input;
+    }
+
+    // Add vap idx to the start of the raw data
+    // Data format: [vap_idx, oui[3], payload]
+    uint8_t pTmp[1+p_data->raw_data_len];
+    pTmp[0] = idx;
+    memcpy(&pTmp[1], p_data->raw_data.bytes, p_data->raw_data_len);
+
     wifi_util_dbg_print(WIFI_CTRL, "%s bus set string %s\n", __FUNCTION__, pTmp);
-    push_event_to_ctrl_queue(pTmp, p_data->raw_data_len, wifi_event_type_command,
+    push_event_to_ctrl_queue(pTmp, p_data->raw_data_len+1, wifi_event_type_command,
         wifi_event_type_command_add_vendor_ie, NULL);
 
     return bus_error_success;
@@ -949,14 +976,42 @@ bus_error_t add_vendor_ie_command(char *name, raw_data_t *p_data)
 
 bus_error_t rm_vendor_ie_command(char *name, raw_data_t *p_data)
 {
-    uint8_t *pTmp = (uint8_t *)p_data->raw_data.bytes;
-    if ((p_data->data_type != bus_data_type_bytes) || (pTmp == NULL)) {
+
+    if (!name) {
+        wifi_util_error_print(WIFI_CTRL, "%s:%d property name is not found\r\n", __FUNCTION__,
+            __LINE__);
+        return bus_error_invalid_input;
+    }
+
+    unsigned int num_of_radios = getNumberRadios();
+    unsigned int idx = 0;
+
+    int ret = sscanf(name, "Device.WiFi.AccessPoint.%d.RemoveVendorSpecificIE", &idx);
+    if (ret == 1 || idx < 0 || idx > num_of_radios * MAX_NUM_VAP_PER_RADIO) {
+        wifi_util_error_print(WIFI_CTRL, "%s:%d Invalid name : %s\r\n", __func__, __LINE__, name);
+        return bus_error_invalid_input;
+    }
+    
+    if ((p_data->data_type != bus_data_type_bytes) || (p_data->raw_data.bytes == NULL)) {
        wifi_util_error_print(WIFI_CTRL,"%s:%d wrong bus data_type:%x\n", __func__, __LINE__, p_data->data_type);
        return bus_error_invalid_input;
     }
 
+    // Check if the raw data length is less than 4 (OUI length + 1 byte minimum payload)
+    if (p_data->raw_data_len < 4) {
+        wifi_util_error_print(WIFI_CTRL, "%s:%d Invalid raw data length : %d\r\n", __func__,
+            __LINE__, p_data->raw_data_len);
+        return bus_error_invalid_input;
+    }
+
+    // Add vap idx to the start of the raw data
+    // Data format: [vap_idx, oui[3], payload]
+    uint8_t pTmp[1+p_data->raw_data_len];
+    pTmp[0] = idx;
+    memcpy(&pTmp[1], p_data->raw_data.bytes, p_data->raw_data_len);
+
     wifi_util_dbg_print(WIFI_CTRL, "%s bus set string %s\n", __FUNCTION__, pTmp);
-    push_event_to_ctrl_queue(pTmp, p_data->raw_data_len, wifi_event_type_command,
+    push_event_to_ctrl_queue(pTmp, p_data->raw_data_len+1, wifi_event_type_command,
         wifi_event_type_command_rm_vendor_ie, NULL);
 
     return bus_error_success;
