@@ -2689,6 +2689,7 @@ void process_channel_change_event(wifi_channel_change_event_t *ch_chg, bool is_n
                             ch_chg->channel, ch_chg->event, ch_chg->sub_event, ch_chg->op_class);
 
     stop_wifi_sched_timer(ch_chg->radioIndex, ctrl, wifi_csa_sched);
+    stop_wifi_sched_timer(ch_chg->radioIndex, ctrl, wifi_acs_sched);
 
     if ((ch_chg->event == WIFI_EVENT_CHANNELS_CHANGED) && ((radio_params->channel == ch_chg->channel)
                 && (radio_params->channelWidth == ch_chg->channelWidth))) {
@@ -2876,7 +2877,6 @@ void process_channel_change_event(wifi_channel_change_event_t *ch_chg, bool is_n
     g_wifidb->ctrl.webconfig_state |= ctrl_webconfig_state_radio_cfg_rsp_pending;
     start_wifi_sched_timer(ch_chg->radioIndex, ctrl, wifi_radio_sched);
     update_wifi_radio_config(ch_chg->radioIndex, radio_params, radio_feat);
-    ctrl->acs_pending[ch_chg->radioIndex] = false;
 }
 
 #define MAX_NEIGHBOURS 250
@@ -3094,6 +3094,32 @@ static void process_monitor_init_command(void)
     free(data);
 }
 
+void process_send_action_frame_command(void *data, unsigned int len)
+{
+    action_frame_params_t *params;
+
+    if (data == NULL) {
+        wifi_util_error_print(WIFI_CTRL, "%s:%d NUll data Pointer\n", __func__, __LINE__);
+        return;
+    }
+
+    if (len < sizeof(action_frame_params_t) + 1) {
+        wifi_util_error_print(WIFI_CTRL, "%s:%d Invalid parameter size \r\n", __func__, __LINE__);
+        return;
+    }
+
+    params = (action_frame_params_t *)data;
+
+    if (wifi_sendActionFrame(params->ap_index, params->dest_addr, params->frequency,
+            params->frame_data, params->frame_len)) {
+        wifi_util_error_print(WIFI_CTRL, "%s:%d HAL sendActionFrame method failed :\r\n", __func__,
+            __LINE__);
+        return;
+    }
+
+    return;
+}
+
 void handle_command_event(wifi_ctrl_t *ctrl, void *data, unsigned int len,
     wifi_event_subtype_t subtype)
 {
@@ -3219,6 +3245,9 @@ void handle_command_event(wifi_ctrl_t *ctrl, void *data, unsigned int len,
         break;
     case wifi_event_type_notify_monitor_done:
         process_monitor_init_command();
+        break;
+    case wifi_event_type_send_action_frame:
+        process_send_action_frame_command(data, len);
         break;
     case wifi_event_type_mgmt_frame_bus_rfc:
     case wifi_event_type_sta_connect_in_progress:

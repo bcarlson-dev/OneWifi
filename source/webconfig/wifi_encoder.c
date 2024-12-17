@@ -546,9 +546,16 @@ webconfig_error_t encode_preassoc_object(const wifi_preassoc_control_t *preassoc
     } else {
         cJSON_AddStringToObject(preassoc, "6GOpInfoMinRate", preassoc_info->sixGOpInfoMinRate);
     }
-  
-    cJSON_AddNumberToObject(preassoc, "TimeInMs", preassoc_info->time_ms);
-    cJSON_AddNumberToObject(preassoc, "MinMgmtFrames", preassoc_info->min_num_mgmt_frames);
+    wifi_util_dbg_print(WIFI_WEBCONFIG,"%s:%d: Encoding preassoc settings passed\n", __func__, __LINE__);
+
+    return webconfig_error_none;
+}
+
+
+webconfig_error_t encode_tcm_preassoc_object(const wifi_preassoc_control_t *preassoc_info, cJSON *preassoc)
+{
+    cJSON_AddNumberToObject(preassoc, "TcmWaitTime", preassoc_info->time_ms);
+    cJSON_AddNumberToObject(preassoc, "TcmMinMgmtFrames", preassoc_info->min_num_mgmt_frames);
     if(strlen((char *)preassoc_info->tcm_exp_weightage) == 0) {
         cJSON_AddStringToObject(preassoc, "TcmExpWeightage", TCM_WEIGH);
     } else {
@@ -559,10 +566,11 @@ webconfig_error_t encode_preassoc_object(const wifi_preassoc_control_t *preassoc
     } else {
         cJSON_AddStringToObject(preassoc, "TcmGradientThreshold", preassoc_info->tcm_gradient_threshold);
     }
-    wifi_util_dbg_print(WIFI_WEBCONFIG,"%s:%d: Encoding preassoc settings passed\n", __func__, __LINE__);
+    wifi_util_dbg_print(WIFI_WEBCONFIG,"%s:%d: Encoding tcm preassoc settings passed\n", __func__, __LINE__);
 
     return webconfig_error_none;
 }
+
 
 webconfig_error_t encode_connection_ctrl_object(const wifi_vap_info_t *vap_info, cJSON *vap_obj)
 {
@@ -575,6 +583,13 @@ webconfig_error_t encode_connection_ctrl_object(const wifi_vap_info_t *vap_info,
     cJSON_AddItemToObject(vap_obj, "PreAssociationDeny", obj);
     if (encode_preassoc_object(&vap_info->u.bss_info.preassoc, obj) != webconfig_error_none) {
         wifi_util_error_print(WIFI_WEBCONFIG, "%s:%d Preassoc object encode failed for %s\n",__FUNCTION__, __LINE__, vap_info->vap_name);
+        return webconfig_error_encode;
+    }
+
+    obj = cJSON_CreateObject();
+    cJSON_AddItemToObject(vap_obj, "TcmPreAssociationDeny", obj);
+    if (encode_tcm_preassoc_object(&vap_info->u.bss_info.preassoc, obj) != webconfig_error_none) {
+        wifi_util_error_print(WIFI_WEBCONFIG, "%s:%d TcmPreassoc object encode failed for %s\n",__FUNCTION__, __LINE__, vap_info->vap_name);
         return webconfig_error_encode;
     }
 
@@ -1562,7 +1577,7 @@ webconfig_error_t encode_frame_data(cJSON *obj_assoc_client, frame_data_t *frame
 
 webconfig_error_t encode_associated_client_object(rdk_wifi_vap_info_t *rdk_vap_info, cJSON *assoc_array, assoclist_type_t assoclist_type)
 {
-    bool print_assoc_client = false;
+    bool print_assoc_client = false, include_frame_data = false;
     if ((rdk_vap_info == NULL) || (assoc_array == NULL)) {
         wifi_util_error_print(WIFI_WEBCONFIG, "%s:%d Associated Client encode failed\n",__FUNCTION__, __LINE__);
         return webconfig_error_encode;
@@ -1596,10 +1611,12 @@ webconfig_error_t encode_associated_client_object(rdk_wifi_vap_info_t *rdk_vap_i
         assoc_dev_data = hash_map_get_first(devices_map);
         while (assoc_dev_data != NULL) {
             print_assoc_client = false;
+            include_frame_data = false;
             if (assoclist_type == assoclist_type_full) {
                 print_assoc_client = true;
             } else if ((assoclist_type == assoclist_type_add) && (assoc_dev_data->client_state == client_state_connected)) {
                 print_assoc_client = true;
+                include_frame_data = true;
             } else if ((assoclist_type == assoclist_type_remove) && (assoc_dev_data->client_state == client_state_disconnected)) {
                 print_assoc_client = true;
             }
@@ -1642,10 +1659,12 @@ webconfig_error_t encode_associated_client_object(rdk_wifi_vap_info_t *rdk_vap_i
                 cJSON_AddNumberToObject(obj_assoc_client, "FailedRetransCount", assoc_dev_data->dev_stats.cli_FailedRetransCount);
                 cJSON_AddNumberToObject(obj_assoc_client, "RetryCount", assoc_dev_data->dev_stats.cli_RetryCount);
                 cJSON_AddNumberToObject(obj_assoc_client, "MultipleRetryCount", assoc_dev_data->dev_stats.cli_MultipleRetryCount);
-                if (encode_frame_data(obj_assoc_client, &assoc_dev_data->sta_data.msg_data) !=
-                    webconfig_error_none) {
-                    wifi_util_error_print(WIFI_WEBCONFIG, "%s:%d Encode frame data failed for client %s\n",
-                        __func__, __LINE__, mac_string);
+                if (include_frame_data == true &&
+                    encode_frame_data(obj_assoc_client, &assoc_dev_data->sta_data.msg_data) !=
+                        webconfig_error_none) {
+                    wifi_util_error_print(WIFI_WEBCONFIG,
+                        "%s:%d Encode frame data failed for client %s\n", __func__, __LINE__,
+                        mac_string);
                 }
             }
             assoc_dev_data = hash_map_get_next(devices_map, assoc_dev_data);

@@ -422,6 +422,9 @@ int webconfig_bus_apply(wifi_ctrl_t *ctrl, webconfig_subdoc_encoded_data_t *data
     rdata.raw_data.bytes = (void *)data->raw;
     rdata.raw_data_len = strlen(data->raw) + 1;
 
+    wifi_util_dbg_print(WIFI_CTRL, "%s:%d:bus_event_publish_fn WIFI_WEBCONFIG_DOC_DATA_NORTH initiated %d\n", __func__,
+            __LINE__);
+
     rc = get_bus_descriptor()->bus_event_publish_fn(&ctrl->handle, WIFI_WEBCONFIG_DOC_DATA_NORTH,
         &rdata);
     if (rc != bus_error_success) {
@@ -2127,6 +2130,21 @@ bus_error_t eventSubHandler(char *eventName, bus_event_sub_action_t action,
                 data = NULL;
             }
             break;
+        case wifi_event_monitor_action_frame:
+            idx = event->idx;
+            wifi_util_info_print(WIFI_CTRL, "%s:%d action=%s\n eventName=%s idx %d\n", __func__,
+                __LINE__, action == bus_event_action_subscribe ? "subscribe" : "unsubscribe",
+                eventName, idx);
+            if (action == bus_event_action_subscribe) {
+                event->num_subscribers++;
+                event->subscribed = TRUE;
+            } else {
+                event->num_subscribers--;
+                if (event->num_subscribers == 0) {
+                    event->subscribed = FALSE;
+                }
+            }
+            break;
         default:
             wifi_util_dbg_print(WIFI_CTRL, "%s(): Invalid event type\n", __FUNCTION__);
             break;
@@ -2355,6 +2373,16 @@ bus_error_t ap_table_addrowhandler(char const *tableName, char const *aliasName,
         sprintf(event->name, "Device.WiFi.AccessPoint.%d.Security.ConnectedRadiusEndpoint", *instNum);
         event->idx = vap_index;
         event->type =  wifi_event_radius_fallback_and_failover;
+        event->subscribed = FALSE;
+        event->num_subscribers = 0;
+        queue_push(ctrl->events_bus_data.events_bus_queue, event);
+    }
+
+    event = (event_bus_element_t *)malloc(sizeof(event_bus_element_t));
+    if (event != NULL) {
+        sprintf(event->name, "Device.WiFi.AccessPoint.%d.RawFrame.Mgmt.Action.Rx", *instNum);
+        event->idx = vap_index;
+        event->type = wifi_event_monitor_action_frame;
         event->subscribed = FALSE;
         event->num_subscribers = 0;
         queue_push(ctrl->events_bus_data.events_bus_queue, event);
@@ -2648,9 +2676,30 @@ int events_bus_publish(wifi_event_t *evt)
         if (events_getSubscribed(eventName) == TRUE) {
             pthread_mutex_lock(&ctrl->events_bus_data.events_bus_lock);
             memset(&data, 0, sizeof(raw_data_t));
-            data.data_type = bus_data_type_uint8;
-            data.raw_data.u8 = evt->u.mon_data->u.dev.sta_mac[0];
+            data.data_type = bus_data_type_bytes;
+            data.raw_data.bytes = evt->u.mon_data->u.dev.sta_mac;
             data.raw_data_len = sizeof(evt->u.mon_data->u.dev.sta_mac);
+
+            rc = get_bus_descriptor()->bus_event_publish_fn(&ctrl->handle, eventName, &data);
+            pthread_mutex_unlock(&ctrl->events_bus_data.events_bus_lock);
+            if (rc != bus_error_success) {
+                wifi_util_error_print(WIFI_CTRL, "%s(): bus_event_publish_fn Event failed: %d\n",
+                    __FUNCTION__, rc);
+            } else {
+                wifi_util_dbg_print(WIFI_CTRL, "%s(): Event - %s %s \n", __FUNCTION__,
+                    wifi_event_subtype_to_string(evt->sub_type), eventName);
+            }
+        }
+        break;
+    case wifi_event_monitor_action_frame:
+        sprintf(eventName, "Device.WiFi.AccessPoint.%d.RawFrame.Mgmt.Action.Rx",
+            evt->u.mon_data->ap_index + 1);
+        if (events_getSubscribed(eventName) == TRUE) {
+            pthread_mutex_lock(&ctrl->events_bus_data.events_bus_lock);
+            memset(&data, 0, sizeof(raw_data_t));
+            data.data_type = bus_data_type_bytes;
+            data.raw_data.bytes = (void *)&evt->u.mon_data->u.msg.data;
+            data.raw_data_len = evt->u.mon_data->u.msg.frame.len;
 
             rc = get_bus_descriptor()->bus_event_publish_fn(&ctrl->handle, eventName, &data);
             pthread_mutex_unlock(&ctrl->events_bus_data.events_bus_lock);
@@ -2741,6 +2790,41 @@ bus_error_t get_client_assoc_request_multi(char const* methodName, raw_data_t *i
     }
     memcpy(outParams->raw_data.bytes, (uint8_t *)l_data, output_len);
     outParams->raw_data_len = output_len;
+
+    return bus_error_success;
+}
+
+bus_error_t send_action_frame(char *name, raw_data_t *p_data)
+{
+
+    unsigned int len = 0;
+    char *pTmp = NULL;
+    unsigned int idx = 0;
+    int ret;
+    unsigned int num_of_radios = getNumberRadios();
+
+    if (!name) {
+        wifi_util_error_print(WIFI_CTRL, "%s:%d property name is not found\r\n", __FUNCTION__,
+            __LINE__);
+        return bus_error_element_name_missing;
+    }
+
+    pTmp = (char *)p_data->raw_data.bytes;
+    if ((p_data->data_type != bus_data_type_bytes) || (pTmp == NULL)) {
+        wifi_util_error_print(WIFI_CTRL, "%s:%d wrong bus data_type:%x\n", __func__, __LINE__,
+            p_data->data_type);
+        return bus_error_invalid_input;
+    }
+
+    ret = sscanf(name, "Device.WiFi.AccessPoint.%d.RawFrame.Mgmt.Action.Tx", &idx);
+    if (ret != 1 || idx < 0 || idx > num_of_radios * MAX_NUM_VAP_PER_RADIO) {
+        wifi_util_error_print(WIFI_CTRL, "%s:%d Invalid index : %s\r\n", __func__, __LINE__, name);
+        return bus_error_invalid_event;
+    }
+
+    len = p_data->raw_data_len;
+    push_event_to_ctrl_queue((char *)pTmp, len, wifi_event_type_command,
+        wifi_event_type_send_action_frame, NULL);
 
     return bus_error_success;
 }
@@ -2914,6 +2998,12 @@ void bus_register_handlers(wifi_ctrl_t *ctrl)
                                 { WIFI_ACCESSPOINT_FORCE_APPLY, bus_element_type_method,
                                     { NULL, set_force_vap_apply, NULL, NULL, NULL, NULL}, slow_speed, ZERO_TABLE,
                                     { bus_data_type_boolean, true, 0, 0, 0, NULL } },
+                                { WIFI_ACCESSPOINT_RAWFRAME_MGMT_ACTION_RX, bus_element_type_event,
+                                    { NULL, NULL, NULL, NULL, eventSubHandler, NULL}, high_speed, ZERO_TABLE,
+                                    { bus_data_type_bytes, false, 0, 0, 0, NULL } },
+                                { WIFI_ACCESSPOINT_RAWFRAME_MGMT_ACTION_TX, bus_element_type_method,
+                                    { NULL, send_action_frame, NULL, NULL, NULL, NULL}, high_speed, ZERO_TABLE,
+                                    { bus_data_type_bytes, true, 0, 0, 0, NULL } },
                                 { ACCESSPOINT_ASSOC_REQ_EVENT, bus_element_type_method,
                                     { NULL, NULL, NULL, NULL, NULL, NULL}, slow_speed, ZERO_TABLE,
                                     { bus_data_type_string, true, 0, 0, 0, NULL } },
