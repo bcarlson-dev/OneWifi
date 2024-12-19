@@ -947,7 +947,8 @@ bus_error_t add_vendor_ie_command(char *name, raw_data_t *p_data)
 
     int ret = sscanf(name, "Device.WiFi.AccessPoint.%d.AddVendorSpecificIE", &idx);
     if (ret < 1 || idx < 0 || idx > num_of_radios * MAX_NUM_VAP_PER_RADIO) {
-        wifi_util_error_print(WIFI_CTRL, "%s:%d Invalid access point index : %s\r\n", __func__, __LINE__, name);
+        wifi_util_error_print(WIFI_CTRL, "%s:%d Invalid access point index : %s\r\n", __func__,
+            __LINE__, name);
         return bus_error_invalid_input;
     }
 
@@ -955,10 +956,11 @@ bus_error_t add_vendor_ie_command(char *name, raw_data_t *p_data)
     // vap index in radio_config starts from 0
     // vap index in bus starts from 1
     idx -= 1;
-    
+
     if ((p_data->data_type != bus_data_type_bytes) || (p_data->raw_data.bytes == NULL)) {
-       wifi_util_error_print(WIFI_CTRL,"%s:%d wrong bus data_type:%x\n", __func__, __LINE__, p_data->data_type);
-       return bus_error_invalid_input;
+        wifi_util_error_print(WIFI_CTRL, "%s:%d wrong bus data_type:%x\n", __func__, __LINE__,
+            p_data->data_type);
+        return bus_error_invalid_input;
     }
 
     // Check if the raw data length is less than 4 (OUI length + 1 byte minimum payload)
@@ -981,7 +983,6 @@ bus_error_t add_vendor_ie_command(char *name, raw_data_t *p_data)
     return bus_error_success;
 }
 
-
 bus_error_t rm_vendor_ie_command(char *name, raw_data_t *p_data)
 {
 
@@ -996,7 +997,8 @@ bus_error_t rm_vendor_ie_command(char *name, raw_data_t *p_data)
 
     int ret = sscanf(name, "Device.WiFi.AccessPoint.%d.RemoveVendorSpecificIE", &idx);
     if (ret < 1 || idx < 1 || idx > num_of_radios * MAX_NUM_VAP_PER_RADIO) {
-        wifi_util_error_print(WIFI_CTRL, "%s:%d Invalid access point index : %s\r\n", __func__, __LINE__, name);
+        wifi_util_error_print(WIFI_CTRL, "%s:%d Invalid access point index : %s\r\n", __func__,
+            __LINE__, name);
         return bus_error_invalid_input;
     }
 
@@ -1004,10 +1006,11 @@ bus_error_t rm_vendor_ie_command(char *name, raw_data_t *p_data)
     // vap index in radio_config starts from 0
     // vap index in bus starts from 1
     idx -= 1;
-    
+
     if ((p_data->data_type != bus_data_type_bytes) || (p_data->raw_data.bytes == NULL)) {
-       wifi_util_error_print(WIFI_CTRL,"%s:%d wrong bus data_type:%x\n", __func__, __LINE__, p_data->data_type);
-       return bus_error_invalid_input;
+        wifi_util_error_print(WIFI_CTRL, "%s:%d wrong bus data_type:%x\n", __func__, __LINE__,
+            p_data->data_type);
+        return bus_error_invalid_input;
     }
 
     // Check if the raw data length is less than 4 (OUI length + 1 byte minimum payload)
@@ -1029,7 +1032,6 @@ bus_error_t rm_vendor_ie_command(char *name, raw_data_t *p_data)
 
     return bus_error_success;
 }
-
 
 int wifiapi_result_publish(void)
 {
