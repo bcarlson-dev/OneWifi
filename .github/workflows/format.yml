@@ -3,7 +3,7 @@ name: Clang Format Check
 on:
   pull_request:
     branches:
-      - develop
+      - feature/clang-gh-action
 
 jobs:
   clang-format-check:
