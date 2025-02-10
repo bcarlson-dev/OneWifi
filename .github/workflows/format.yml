@@ -1,0 +1,53 @@
+name: Clang Format Check
+
+on:
+  pull_request:
+    branches:
+      - develop
+
+jobs:
+  clang-format-check:
+    name: Check clang-format on PR changes
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Ensure full history for diffing
+
+      - name: Install clang-format
+        run: sudo apt-get install -y clang-format
+
+      - name: Get changed files
+        id: changed-files
+        run: |
+          CHANGED_FILES=$(git diff --name-only --diff-filter=d origin/${{ github.base_ref }}..HEAD | grep -E '\.(c|cpp|h|hpp)$' || true)
+          echo "Changed files: $CHANGED_FILES"
+          echo "CHANGED_FILES=$CHANGED_FILES" >> $GITHUB_ENV
+
+      - name: Run clang-format and generate a Git patch if needed
+        if: env.CHANGED_FILES != ''
+        run: |
+          for file in $CHANGED_FILES; do
+            clang-format -i "$file"
+            git add "$file"
+          done
+
+          # Generate a proper Git patch if there are changes
+          git diff --cached > clang-format-fixes.patch || true
+
+      - name: Upload Git patch artifact
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: clang-format-fixes
+          path: clang-format-fixes.patch
+          retention-days: 3
+
+      - name: Fail if formatting issues were found
+        if: failure()
+        run: |
+          echo "Clang-format issues detected. Download the 'clang-format-fixes' artifact and apply it using:"
+          echo "git apply clang-format-fixes.patch"
+          exit 1
