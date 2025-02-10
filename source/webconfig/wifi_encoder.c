@@ -455,6 +455,21 @@ webconfig_error_t encode_vap_common_object(const wifi_vap_info_t *vap_info,
 
     cJSON_AddBoolToObject(vap_object, "MboEnabled", vap_info->u.bss_info.mbo_enabled);
 
+    decode_param_allow_empty_string(vap, "ExtraVendorIEs", param);
+    extra_vendor_ies = param->valuestring;
+
+    if (extra_vendor_ies != NULL) {
+        size_t input_len = strlen(extra_vendor_ies);
+        for (int i = 0; i < sizeof(vap_info->u.bss_info.vendor_elements); i++) {
+            // Check if we have at least 2 chars remaining
+            if (2 * i + 1 >= input_len || sscanf(extra_vendor_ies + 2 * i, "%02x", &vap_info->u.bss_info.vendor_elements[i]) != 1) {
+                // Set length to number of successfully parsed elements
+                vap_info->u.bss_info.vendor_elements_len = i;
+                break;
+            }
+        }
+    }
+
     return webconfig_error_none;
 }
 
