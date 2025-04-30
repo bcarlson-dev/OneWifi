@@ -146,7 +146,7 @@ typedef unsigned char mac_addr_t[MAC_ADDR_LEN];
 #ifdef RASPBERRY_PI_PORT
     #define MIN_NUM_RADIOS 1
 #else
-    #define MIN_NUM_RADIOS 2
+    #define MIN_NUM_RADIOS 1
 #endif
 struct wifiCountryEnumStrMapMember {
     wifi_countrycode_type_t countryCode;
