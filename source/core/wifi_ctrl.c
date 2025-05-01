@@ -749,10 +749,20 @@ void start_extender_vaps(void)
 {
     wifi_ctrl_t *ctrl;
     vap_svc_t *ext_svc;
+    vap_svc_t *mesh_gw_svc;
+    vap_svc_t *priv_svc;
 
     ctrl = (wifi_ctrl_t *)get_wifictrl_obj();
     ext_svc = get_svc_by_type(ctrl, vap_svc_type_mesh_ext);
     ext_svc->start_fn(ext_svc, WIFI_ALL_RADIO_INDICES, NULL);
+
+    mesh_gw_svc = get_svc_by_type(ctrl, vap_svc_type_mesh_gw);
+    mesh_gw_svc->start_fn(mesh_gw_svc, WIFI_ALL_RADIO_INDICES, NULL);
+
+    priv_svc = get_svc_by_type(ctrl, vap_svc_type_private);
+
+    //start private
+    priv_svc->start_fn(priv_svc, WIFI_ALL_RADIO_INDICES, NULL);
 }
 
 void start_gateway_vaps()
