@@ -27,12 +27,10 @@
 # executable must be linked against.
 #
 
-include makefile.inc
-
 EASY_MESH_NODE = 1
 EM_APP = 1
 ONEWIFI_STA_MGR_APP_SUPPORT = 1
-
+ONEWIFI_EASYCONNECT_APP_SUPPORT = 1
 # wifi hal rules
 HAL_LIBRARY = $(INSTALLDIR)/lib/libwifihal.a
 WEBCONFIG_LIBRARY = $(INSTALLDIR)/lib/libwebconfig.a
@@ -44,7 +42,8 @@ INCLUDE_HAL_LIB_DIRS = \
     -I$(WIFI_RDK_HAL)/util_crypto \
     -I$(WIFI_DEVICE_HAL)/  \
     -I$(WIFI_SYSCALL_WRAPPER)/source/ \
-    -I$(WIFI_CJSON)/
+    -I$(WIFI_CJSON)/ \
+    -I$(WIFI_HAL_INTERFACE)/
 
 INCLUDE_HOSTAP_LIB_DIRS = \
     -I$(WIFI_HOSTAP_BASE) \
@@ -286,17 +285,6 @@ INCLUDEDIRS = \
     -I$(WIFI_NETLINK)/include \
     -I$(WIFI_TROWER_BASE) \
 
-LIBDIRS = \
-    -L$(INSTALLDIR)/lib \
-    -L/usr/local/lib    \
-    -L/usr/local/ssl/lib/ \
-
-ifneq ($(OS), Darwin)
-LIBDIRS += -L$(INSTALLDIR)/lib/platform/x86-64
-else
-LIBDIRS += -L$(INSTALLDIR)/lib/platform/darwin
-endif
-
 LIBS = -lm -luuid -lwifihal  -lpthread -ldl -ljansson -lev -lssl -lcrypto -lnl-3 -lnl-genl-3 -lnl-route-3 -lavro -lcjson
 
 #
@@ -441,7 +429,7 @@ ALL_HEBUS_LIB_OBJECTS = $(HEBUS_OBJECTS)
 ALLOBJECTS = $(CXXOBJECTS) $(COBJECTS) $(WEBCONFIG_OBJECTS) $(HEBUS_OBJECTS)
 
 CFLAGS += $(INCLUDEDIRS) $(INCLUDE_HE_LIB_DIRS) -g -fPIC -D_ANSC_LINUX -D_COSA_INTEL_USG_ATOM_ -DUSE_NOTIFY_COMPONENT -DCISCO_XB3_PLATFORM_CHANGES -DDUAL_CORE_XB3 -DFEATURE_ONE_WIFI -DWIFI_HAL_VERSION_3 -DFEATURE_SUPPORT_PASSPOINT -DFEATURE_SUPPORT_WEBCONFIG -DBANANA_PI_PORT  -DNL80211_ACL -D_PLATFORM_BANANAPI_R4_ -DFEATURE_SINGLE_PHY -DEASY_MESH_NODE -DEM_APP \
-        -DONEWIFI_STA_MGR_APP_SUPPORT
+        -DONEWIFI_STA_MGR_APP_SUPPORT -DONEWIFI_EASYCONNECT_APP_SUPPORT
 
 ifneq ($(OS), Darwin)
 CFLAGS += -DPLATFORM_LINUX

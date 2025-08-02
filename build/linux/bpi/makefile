@@ -27,8 +27,6 @@
 # executable must be linked against.
 #
 
-include build/linux/makefile.inc
-
 
 EASY_MESH_NODE = 1
 EM_APP = 1
@@ -285,7 +283,7 @@ INCLUDEDIRS = \
     -I$(WIFI_HOSTAP_SRC) \
     -I$(WIFI_HOSTAP_SRC)/ap \
     -I$(WIFI_NETLINK)/include \
-    -I$(WIFI_TROWER_BASE) \
+    -I$(WIFI_TROWER_BASE)/ \
 
 LIBDIRS = \
     -L$(INSTALLDIR)/lib \
